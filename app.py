@@ -5,7 +5,7 @@ Manages cryptocurrency options and futures portfolio across Binance and Bybit
 
 import os
 import logging
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import threading
 import time
@@ -65,11 +65,13 @@ trading_data = {
 
 # Initialize exchange connectors and portfolio manager
 portfolio_manager = None
+binance_connector = None
+bybit_connector = None
 
 
 def initialize_connectors():
     """Initialize exchange connectors and portfolio manager"""
-    global portfolio_manager
+    global portfolio_manager, binance_connector, bybit_connector
     
     try:
         # Get API keys from environment variables
@@ -82,11 +84,9 @@ def initialize_connectors():
         use_testnet = os.getenv('USE_TESTNET', 'false').lower() == 'true'
         
         # Initialize exchange connectors
-        binance_connector = None
-        bybit_connector = None
-        
         if binance_api_key and binance_secret:
             try:
+                global binance_connector
                 binance_connector = ExchangeConnector(
                     'binance',
                     binance_api_key,
@@ -104,6 +104,7 @@ def initialize_connectors():
         
         if bybit_api_key and bybit_secret:
             try:
+                global bybit_connector
                 bybit_connector = ExchangeConnector(
                     'bybit',
                     bybit_api_key,
@@ -244,6 +245,67 @@ def handle_request_update():
             logger.error(f"Error handling update request: {e}")
     else:
         emit('update', trading_data)
+
+
+@app.route('/api/place_order', methods=['POST'])
+def place_order():
+    """API endpoint to place orders on exchanges"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        exchange_name = data.get('exchange', '').lower()
+        symbol = data.get('symbol', '')
+        side = data.get('side', '').lower()
+        order_type = data.get('type', '').lower()
+        amount = float(data.get('amount', 0))
+        price = data.get('price')
+        
+        # Validate required fields
+        if not all([exchange_name, symbol, side, order_type, amount]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        if order_type == 'limit' and not price:
+            return jsonify({'success': False, 'error': 'Price required for limit orders'}), 400
+        
+        # Get the appropriate connector
+        connector = None
+        if exchange_name == 'binance':
+            connector = binance_connector
+        elif exchange_name == 'bybit':
+            connector = bybit_connector
+        else:
+            return jsonify({'success': False, 'error': 'Invalid exchange'}), 400
+        
+        if not connector:
+            return jsonify({
+                'success': False, 
+                'error': f'{exchange_name.capitalize()} connector not initialized. Check API keys.'
+            }), 400
+        
+        # Place the order
+        result = connector.place_order(
+            symbol=symbol,
+            side=side,
+            order_type=order_type,
+            amount=amount,
+            price=float(price) if price else None
+        )
+        
+        if result.get('success'):
+            logger.info(f"Order placed successfully: {result.get('order_id')}")
+            # Emit update to refresh dashboard
+            socketio.emit('order_placed', result)
+        else:
+            logger.error(f"Order placement failed: {result.get('error')}")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error placing order: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -231,6 +231,63 @@ class ExchangeConnector:
             # Return first part of symbol
             return symbol.split('/')[0] if '/' in symbol else symbol[:3]
     
+    def place_order(self, symbol: str, side: str, order_type: str, amount: float, 
+                   price: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Place an order on the exchange
+        
+        Args:
+            symbol: Trading symbol (e.g., 'BTC/USDT')
+            side: 'buy' or 'sell'
+            order_type: 'market' or 'limit'
+            amount: Order amount
+            price: Limit price (required for limit orders)
+            
+        Returns:
+            Dictionary with order information
+        """
+        try:
+            if not self.exchange:
+                raise ValueError("Exchange not initialized")
+            
+            if order_type == 'limit' and price is None:
+                raise ValueError("Price is required for limit orders")
+            
+            # Prepare order parameters
+            order_params = {
+                'symbol': symbol,
+                'side': side,
+                'type': order_type,
+                'amount': amount
+            }
+            
+            if order_type == 'limit' and price:
+                order_params['price'] = price
+            
+            # Place the order
+            order = self.exchange.create_order(**order_params)
+            
+            logger.info(f"Order placed on {self.exchange_name}: {order.get('id', 'unknown')}")
+            
+            return {
+                'success': True,
+                'order_id': order.get('id'),
+                'symbol': order.get('symbol'),
+                'side': order.get('side'),
+                'type': order.get('type'),
+                'amount': order.get('amount'),
+                'price': order.get('price'),
+                'status': order.get('status'),
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+        except Exception as e:
+            logger.error(f"Error placing order on {self.exchange_name}: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+    
     def test_connection(self) -> bool:
         """
         Test API connection

@@ -307,3 +307,130 @@ socket.on('connect', function() {
     socket.emit('request_update');
 });
 
+// Order Form Handling
+document.addEventListener('DOMContentLoaded', function() {
+    const orderForm = document.getElementById('order-form');
+    const orderTypeSelect = document.getElementById('order-type');
+    const priceGroup = document.getElementById('price-group');
+    const orderPriceInput = document.getElementById('order-price');
+    const resetBtn = document.getElementById('reset-order-form');
+    const orderResult = document.getElementById('order-result');
+    
+    // Show/hide price field based on order type
+    if (orderTypeSelect) {
+        orderTypeSelect.addEventListener('change', function() {
+            if (this.value === 'limit') {
+                priceGroup.style.display = 'block';
+                orderPriceInput.setAttribute('required', 'required');
+            } else {
+                priceGroup.style.display = 'none';
+                orderPriceInput.removeAttribute('required');
+                orderPriceInput.value = '';
+            }
+        });
+    }
+    
+    // Handle form submission
+    if (orderForm) {
+        orderForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Disable submit button
+            const submitBtn = orderForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Placing Order...';
+            
+            // Clear previous results
+            orderResult.className = 'order-result';
+            orderResult.style.display = 'none';
+            orderResult.textContent = '';
+            
+            // Get form data
+            const formData = {
+                exchange: document.getElementById('order-exchange').value,
+                symbol: document.getElementById('order-symbol').value,
+                side: document.getElementById('order-side').value,
+                type: document.getElementById('order-type').value,
+                amount: parseFloat(document.getElementById('order-amount').value),
+                price: document.getElementById('order-price').value ? parseFloat(document.getElementById('order-price').value) : null
+            };
+            
+            try {
+                const response = await fetch('/api/place_order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                // Show result
+                orderResult.style.display = 'block';
+                
+                if (result.success) {
+                    orderResult.className = 'order-result success';
+                    orderResult.innerHTML = `
+                        <strong>✅ Order Placed Successfully!</strong><br>
+                        Order ID: ${result.order_id || 'N/A'}<br>
+                        Symbol: ${result.symbol}<br>
+                        Side: ${result.side.toUpperCase()}<br>
+                        Type: ${result.type.toUpperCase()}<br>
+                        Amount: ${result.amount}<br>
+                        ${result.price ? `Price: ${result.price}<br>` : ''}
+                        Status: ${result.status || 'Pending'}<br>
+                        Time: ${result.timestamp}
+                    `;
+                    
+                    // Reset form after successful order
+                    setTimeout(() => {
+                        orderForm.reset();
+                        priceGroup.style.display = 'none';
+                        orderResult.style.display = 'none';
+                    }, 5000);
+                    
+                    // Request dashboard update
+                    socket.emit('request_update');
+                } else {
+                    orderResult.className = 'order-result error';
+                    orderResult.innerHTML = `
+                        <strong>❌ Order Failed</strong><br>
+                        Error: ${result.error || 'Unknown error'}
+                    `;
+                }
+            } catch (error) {
+                orderResult.className = 'order-result error';
+                orderResult.style.display = 'block';
+                orderResult.innerHTML = `
+                    <strong>❌ Error</strong><br>
+                    ${error.message}
+                `;
+            } finally {
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    }
+    
+    // Handle reset button
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            orderForm.reset();
+            priceGroup.style.display = 'none';
+            orderPriceInput.removeAttribute('required');
+            orderResult.className = 'order-result';
+            orderResult.style.display = 'none';
+            orderResult.textContent = '';
+        });
+    }
+    
+    // Listen for order placed events
+    socket.on('order_placed', function(data) {
+        console.log('Order placed:', data);
+        // Dashboard will be updated automatically via request_update
+    });
+});
+
