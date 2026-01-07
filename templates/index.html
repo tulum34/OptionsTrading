@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Trading Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1>🚀 Options Trading Dashboard</h1>
+            <div class="header-info">
+                <span id="last-update">Last Update: --</span>
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span id="connection-status">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Risk Metrics -->
+        <section class="risk-metrics-section">
+            <h2>Risk Metrics</h2>
+            
+            <div class="risk-row">
+                <div class="risk-card">
+                    <div class="risk-title">Delta Exposure</div>
+                    <div class="risk-value" id="delta-exposure">0.00</div>
+                    <div class="risk-status" id="delta-exposure-status">🟡</div>
+                </div>
+                
+                <div class="risk-card">
+                    <div class="risk-title">Hedge Position</div>
+                    <div class="hedge-details">
+                        <div>BTC: <span id="hedge-btc">0.00</span></div>
+                        <div>ETH: <span id="hedge-eth">0.00</span></div>
+                    </div>
+                </div>
+                
+                <div class="risk-card">
+                    <div class="risk-title">Net Risk</div>
+                    <div class="risk-value" id="net-risk">$0.00</div>
+                    <div class="risk-subtitle">Margin: <span id="margin-used">0%</span></div>
+                </div>
+            </div>
+            
+            <div class="risk-row">
+                <div class="risk-card">
+                    <div class="risk-title">Daily P&L</div>
+                    <div class="risk-value" id="daily-pnl">$0.00</div>
+                    <div class="risk-subtitle" id="daily-pnl-pct">0.00%</div>
+                </div>
+                
+                <div class="risk-card">
+                    <div class="risk-title">Portfolio Value</div>
+                    <div class="risk-value" id="portfolio-value">$0.00</div>
+                </div>
+                
+                <div class="risk-card">
+                    <div class="risk-title">Hedge Ratio</div>
+                    <div class="risk-value" id="hedge-ratio">0%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="hedge-ratio-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Portfolio Overview - Greeks -->
+        <section class="greeks-section">
+            <h2>Portfolio Greeks Overview</h2>
+            
+            <!-- BTC Greeks -->
+            <div class="greeks-row">
+                <div class="greek-card" id="btc-delta">
+                    <div class="greek-header">
+                        <span class="asset-name">BTC</span>
+                        <span class="greek-name">Delta</span>
+                    </div>
+                    <div class="greek-value" id="btc-delta-value">0.00</div>
+                    <div class="greek-status" id="btc-delta-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="btc-gamma">
+                    <div class="greek-header">
+                        <span class="asset-name">BTC</span>
+                        <span class="greek-name">Gamma</span>
+                    </div>
+                    <div class="greek-value" id="btc-gamma-value">0.00</div>
+                    <div class="greek-status" id="btc-gamma-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="btc-theta">
+                    <div class="greek-header">
+                        <span class="asset-name">BTC</span>
+                        <span class="greek-name">Theta</span>
+                    </div>
+                    <div class="greek-value" id="btc-theta-value">0.00</div>
+                    <div class="greek-status" id="btc-theta-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="btc-vega">
+                    <div class="greek-header">
+                        <span class="asset-name">BTC</span>
+                        <span class="greek-name">Vega</span>
+                    </div>
+                    <div class="greek-value" id="btc-vega-value">0.00</div>
+                    <div class="greek-status" id="btc-vega-status">🟡</div>
+                </div>
+            </div>
+
+            <!-- ETH Greeks -->
+            <div class="greeks-row">
+                <div class="greek-card" id="eth-delta">
+                    <div class="greek-header">
+                        <span class="asset-name">ETH</span>
+                        <span class="greek-name">Delta</span>
+                    </div>
+                    <div class="greek-value" id="eth-delta-value">0.00</div>
+                    <div class="greek-status" id="eth-delta-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="eth-gamma">
+                    <div class="greek-header">
+                        <span class="asset-name">ETH</span>
+                        <span class="greek-name">Gamma</span>
+                    </div>
+                    <div class="greek-value" id="eth-gamma-value">0.00</div>
+                    <div class="greek-status" id="eth-gamma-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="eth-theta">
+                    <div class="greek-header">
+                        <span class="asset-name">ETH</span>
+                        <span class="greek-name">Theta</span>
+                    </div>
+                    <div class="greek-value" id="eth-theta-value">0.00</div>
+                    <div class="greek-status" id="eth-theta-status">🟡</div>
+                </div>
+                
+                <div class="greek-card" id="eth-vega">
+                    <div class="greek-header">
+                        <span class="asset-name">ETH</span>
+                        <span class="greek-name">Vega</span>
+                    </div>
+                    <div class="greek-value" id="eth-vega-value">0.00</div>
+                    <div class="greek-status" id="eth-vega-status">🟡</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="actions-section">
+            <button class="action-btn primary" id="hedge-btn">
+                🛡️ Hedge Now
+            </button>
+            <button class="action-btn secondary" id="refresh-btn">
+                🔄 Refresh All
+            </button>
+            <div class="alerts-indicator">
+                <span class="alert-icon">⚠️</span>
+                <span id="alerts-count">0</span> Active Alerts
+            </div>
+        </section>
+
+        <!-- Positions Tables -->
+        <section class="positions-section">
+            <div class="positions-column">
+                <h3>📊 Binance Positions</h3>
+                <table class="positions-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Qty</th>
+                            <th>Delta</th>
+                            <th>Gamma</th>
+                            <th>P&L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="binance-positions">
+                        <tr>
+                            <td colspan="6" class="loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="positions-column">
+                <h3>📊 Bybit Positions</h3>
+                <table class="positions-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Qty</th>
+                            <th>Delta</th>
+                            <th>Gamma</th>
+                            <th>P&L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bybit-positions">
+                        <tr>
+                            <td colspan="6" class="loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section class="activity-section">
+            <h2>Recent Activity</h2>
+            <div class="activity-log" id="activity-log">
+                <div class="activity-item">
+                    <span class="activity-time">--:--:--</span>
+                    <span class="activity-desc">Waiting for updates...</span>
+                    <span class="activity-status">ℹ️</span>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
+
